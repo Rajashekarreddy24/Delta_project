@@ -2,11 +2,13 @@ from pyspark.sql import SparkSession
 from delta import *
 from pyspark.sql.functions import split, monotonically_increasing_id
 from pyspark.sql.functions import col
-
+from pyspark.sql import DataFrameReader
 
 builder = SparkSession.builder.appName('Test')\
     .config('spark.driver.bindAdress', 'http://10.0.2.15:4041')\
     .config('spark.ui.port', '4041')\
+    .config('spark.driver.extraClasspath', '/home/hadoop/postgresql-42.6.0.jar')
+ 
    
     
 spark = configure_spark_with_delta_pip(builder).getOrCreate()
@@ -44,25 +46,24 @@ row_drop = d1.filter(d1.index != '0').filter(d1.index != '1').filter(d1.index !=
         .filter(d1.index != '32').filter(d1.index != '33').filter(d1.index != '34').filter(d1.index != '35').filter(d1.index != '62').filter(d1.index != '63').filter(d1.index != '64').filter(d1.index != '65')\
             .filter(d1.index != '66').filter(d1.index != '67').filter(d1.index != '68').filter(d1.index != '69').filter(d1.index != '72').filter(d1.index != '73').filter(d1.index != '76').filter(d1.index != '77').filter(d1.index != '78')
 
+
 row_drop.write.format('csv').mode('overwrite').save(de_path)
+
 row_drop.show()
+
 d2 = spark.read.options(header = False).csv(de_path)
 
+df = d2.drop('_c9')
 
-def drop_empty_columns(d2):
-    non_empty_columns = [col for col_name in d2.columns if d2.select(col_name).dropna().count() > 0]
-    return d2.select(*non_empty_columns)
+table_name = 'ar_aging_detail_report'
+db_url = "jdbc:postgresql://e-commerce.cj3oddyv0bsk.us-west-1.rds.amazonaws.com:5432/night_audits"
+db_properties = {
+    "user": "postgres",
+    "password": "Welcome!234",
+    "driver": "org.postgresql.Driver"
+}
+df.write.jdbc(url=db_url, table=table_name, mode="overwrite", properties=db_properties)
+print('file uploaded into Db')
 
-df_filtered = drop_empty_columns(d2)
+spark.stop()
 
-
-# table_name = 'ar_aging_report'
-# db_url = "jdbc:postgresql://your_postgresql_host:5432/your_database_name"
-# db_properties = {
-#     "user": "your_username",
-#     "password": "your_password",
-#     "driver": "org.postgresql.Driver"
-# }
-
-# table_name = "your_table_name"  
-# d2.write.jdbc(url=db_url, table=table_name, mode="overwrite", properties=db_properties)
